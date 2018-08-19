@@ -1,0 +1,87 @@
+# Welcome to Serverless!
+#
+# This file is the main config file for your service.
+# It's very minimal at this point and uses default values.
+# You can always add more config options for more control.
+# We've included some commented out config examples here.
+# Just uncomment any of them to get that config option.
+#
+# For full config options, check the docs:
+#    docs.serverless.com
+#
+# Happy Coding!
+
+service: kendooservice
+app: kendoo-teste
+tenant: guilhermealmeida3000
+
+provider:
+  name: aws
+  runtime: nodejs6.10
+  region: us-east-1
+  environment:
+    DYNAMODB_TABLE: Image
+    BUCKET_NAME: kendoo-desafiotecnico-guigs3000-${opt:stage, self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:ListBucket
+      Resource: "arn:aws:s3:::${self:provider.environment.BUCKET_NAME}/*"
+
+functions:
+  extractMetadata:
+    handler: handler.extractMetadata
+    memorySize: 128
+    timeout: 30
+    events:
+      - s3: ${self:provider.environment.BUCKET_NAME}
+        event: s3:ObjectCreated:*
+  getMetadata:
+    handler: handler.getMetadata
+    memorySize: 128
+    timeout: 30
+    events:
+      - http:
+          path: images/{s3objectkey}
+          method: GET
+          cors: true
+  getImage:
+    handler: handler.getImage
+    memorySize: 128
+    timeout: 30
+    events:
+      - http:
+          path: downloadImage/{s3objectkey}
+          method: GET
+          cors: true
+  
+          
+resources:
+  Resources:
+    ImageDynamoDbTable:
+      Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: s3objectkey
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: s3objectkey
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
